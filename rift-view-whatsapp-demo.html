@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>Rift View Specialist Centre — WhatsApp Booking Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { margin:0; font-family:'Inter', ui-sans-serif, system-ui; }
+  .display-font { font-family:'Space Grotesk', ui-sans-serif, system-ui; }
+  @keyframes bounce2 { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-4px)} }
+  .dot-bounce { animation: bounce2 1s infinite; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+const Icon = ({ children, size=16, color="currentColor", style={} }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
+       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>{children}</svg>
+);
+const Check = (p) => <Icon {...p}><polyline points="20 6 9 17 4 12"/></Icon>;
+const CheckCheck = (p) => <Icon {...p}><polyline points="18 6 7 17 2 12"/><polyline points="22 10 11 21 7 17"/></Icon>;
+const ChevronLeft = (p) => <Icon {...p}><polyline points="15 18 9 12 15 6"/></Icon>;
+const MoreVertical = (p) => <Icon {...p}><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></Icon>;
+const Video = (p) => <Icon {...p}><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></Icon>;
+const PhoneIcon = (p) => <Icon {...p}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></Icon>;
+const Smile = (p) => <Icon {...p}><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></Icon>;
+const Paperclip = (p) => <Icon {...p}><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></Icon>;
+const Mic = (p) => <Icon {...p}><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></Icon>;
+const AlertTriangle = (p) => <Icon {...p}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></Icon>;
+const RotateCcw = (p) => <Icon {...p}><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></Icon>;
+const Play = (p) => <Icon {...p}><polygon points="5 3 19 12 5 21 5 3"/></Icon>;
+const Users = (p) => <Icon {...p}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></Icon>;
+
+const T = { bg:"#F6F8F7", ink:"#132422", inkSoft:"#54655F", teal:"#0E3F3D", tealMid:"#1E6B63", amber:"#E2A23B", line:"#E1E7E4", card:"#FFFFFF" };
+const CLINIC = "Rift View Specialist Centre";
+
+const SCENARIOS = {
+  multispecialty: { label:"New patient — multi-specialty routing", icon:"🩺", steps:[
+    { from:"client", text:"Hi, I need to see a specialist" },
+    { from:"bot", text:`Hi! Welcome to ${CLINIC} 👋 What kind of specialist do you need?`, buttons:["Radiology","Ophthalmology","Gynaecology"] },
+    { from:"client", text:"Radiology", isChoice:true },
+    { from:"system", text:"Category matched to Radiology · only one specialist assigned to this department." },
+    { from:"bot", text:"Which service do you need?", buttons:["X-Ray","Ultrasound Scan","CT Scan Referral"] },
+    { from:"client", text:"Ultrasound Scan", isChoice:true },
+    { from:"system", text:"Only Dr. Njoroge is assigned to Radiology — staff selection skipped automatically." },
+    { from:"bot", text:"Here's what's open with Dr. Njoroge:", buttons:["Wed 5 Aug · 9:00 AM","Wed 5 Aug · 11:30 AM","Thu 6 Aug · 2:00 PM"] },
+    { from:"client", text:"Thu 6 Aug · 2:00 PM", isChoice:true },
+    { from:"system", text:"Slot validated against Dr. Njoroge's real calendar — free and confirmed." },
+    { from:"bot", text:"Confirming:\n🩻 Ultrasound Scan\n👨🏾‍⚕️ Dr. Njoroge (Radiology)\n📅 Thu 6 Aug, 2:00 PM\n📍 Rift View, Naivasha", buttons:["Confirm booking","Change time"] },
+    { from:"client", text:"Confirm booking", isChoice:true },
+    { from:"system", text:"Booking saved · real event created on Dr. Njoroge's calendar." },
+    { from:"bot", text:"You're all set! ✅ Ultrasound Scan with Dr. Njoroge, Thu 6 Aug, 2:00 PM. We'll remind you before your visit." },
+  ]},
+
+  customtime: { label:"Booking a specific day/time", icon:"📅", steps:[
+    { from:"client", text:"Hi" },
+    { from:"bot", text:"Welcome back! 👋 Would you like to book your usual Ophthalmology check-up with Dr. Chebet again?", buttons:["Yes, same as before","Something else","Talk to a person"] },
+    { from:"client", text:"Something else", isChoice:true },
+    { from:"bot", text:"What kind of specialist do you need?", buttons:["Ophthalmology","Pediatrics","General Medicine"] },
+    { from:"client", text:"General Medicine", isChoice:true },
+    { from:"bot", text:"Which service?", buttons:["General Consultation","Follow-up Visit"] },
+    { from:"client", text:"General Consultation", isChoice:true },
+    { from:"bot", text:"Here's what's open with Dr. Wafula:", buttons:["Mon 3 Aug · 8:30 AM","Mon 3 Aug · 9:30 AM","📅 Different day/time"] },
+    { from:"client", text:"📅 Different day/time", isChoice:true },
+    { from:"bot", text:"What day and time would you like? e.g. 'Friday 2pm'" },
+    { from:"client", text:"Friday 2pm" },
+    { from:"system", text:"Checked against Dr. Wafula's real hours and existing bookings — free." },
+    { from:"bot", text:"Confirming:\nGeneral Consultation\nDr. Wafula\nFri 7 Aug, 2:00 PM", buttons:["Confirm booking","Change time"] },
+    { from:"client", text:"Confirm booking", isChoice:true },
+    { from:"bot", text:"You're all set! ✅ See you Friday at 2:00 PM with Dr. Wafula." },
+  ]},
+
+  waitlist: { label:"Waitlist — sooner slot opens", icon:"🕐", steps:[
+    { from:"client", text:"Hi, I need to see the gynaecologist" },
+    { from:"bot", text:"Which service do you need?", buttons:["Prenatal Checkup","General Gynae Consultation"] },
+    { from:"client", text:"Prenatal Checkup", isChoice:true },
+    { from:"bot", text:"Here's what's open with Dr. Adhiambo:", buttons:["Tue 11 Aug · 10:00 AM","Wed 12 Aug · 1:00 PM","🕐 Notify me if sooner opens"] },
+    { from:"client", text:"🕐 Notify me if sooner opens", isChoice:true },
+    { from:"system", text:"Added to Dr. Adhiambo's waitlist for Prenatal Checkup." },
+    { from:"bot", text:"You're on the list! We'll message you the moment an earlier slot opens up." },
+    { from:"system", text:"— 2 days later, another patient cancels their Mon 10 Aug slot with Dr. Adhiambo —" },
+    { from:"bot", text:"Good news! An earlier slot just opened up: Prenatal Checkup with Dr. Adhiambo, Mon 10 Aug, 11:00 AM. Want it?", buttons:["Yes, book it","No thanks"] },
+    { from:"client", text:"Yes, book it", isChoice:true },
+    { from:"system", text:"Re-checked slot is still free · real booking created instantly." },
+    { from:"bot", text:"You're all set! ✅ Prenatal Checkup with Dr. Adhiambo, Mon 10 Aug, 11:00 AM." },
+  ]},
+
+  emergency: { label:"Emergency & human handoff", icon:"🚨", steps:[
+    { from:"client", text:"I'm having severe chest pain, please help" },
+    { from:"system", text:"Emergency keywords detected → escalation triggered · bot paused for this chat." },
+    { from:"bot", text:"I'm really sorry you're going through this. I'm connecting you with our on-call team right now — please hold for a moment." },
+    { from:"system", text:"Real WhatsApp alert sent instantly to the clinic's emergency contact number." },
+    { from:"human", text:"🧑🏾‍⚕️ Dr. Kiptoo joined the conversation" },
+    { from:"human", text:"Hi, this is Dr. Kiptoo. I'm sorry to hear that — can you tell me more about what you're feeling right now?" },
+  ]},
+};
+
+function useAutoScroll(dep) {
+  const ref = useRef(null);
+  useEffect(() => { if (ref.current) ref.current.scrollTop = ref.current.scrollHeight; }, [dep]);
+  return ref;
+}
+
+function Bubble({ step }) {
+  if (step.from === "system") {
+    return <div className="flex justify-center my-3">
+      <div className="text-[11px] px-3 py-1.5 rounded-full max-w-[85%] text-center leading-snug" style={{background:"#EAF3E8", color:"#4B5F52"}}>{step.text}</div>
+    </div>;
+  }
+  const isClient = step.from === "client";
+  const isHumanJoin = step.from === "human" && step.text.startsWith("🧑");
+  if (isHumanJoin) {
+    return <div className="flex justify-center my-3">
+      <div className="text-[11px] px-3 py-1.5 rounded-full max-w-[85%] text-center" style={{background:"#FFF3DE", color:"#8A5A12"}}>{step.text}</div>
+    </div>;
+  }
+  const bubbleBg = isClient ? "#DCF8C6" : step.from === "human" ? "#FFF9E7" : "#FFFFFF";
+  return <div className={`flex ${isClient ? "justify-end" : "justify-start"} mb-2 px-1`}>
+    <div className="max-w-[78%] rounded-lg px-3 py-2 text-[13.5px] leading-snug shadow-sm whitespace-pre-line" style={{background:bubbleBg, color:"#111B21"}}>
+      {step.from === "human" && <div className="text-[11px] font-semibold mb-0.5" style={{color:T.tealMid}}>Dr. Kiptoo · on-call physician</div>}
+      {step.text}
+      <div className="flex items-center justify-end gap-1 mt-1 -mb-1">
+        <span className="text-[10px]" style={{color:"#7A8A85"}}>2:41 PM</span>
+        {isClient && <CheckCheck size={13} color="#53BDEB" />}
+      </div>
+    </div>
+  </div>;
+}
+
+function App() {
+  const [scenarioKey, setScenarioKey] = useState("multispecialty");
+  const [stepIndex, setStepIndex] = useState(0);
+  const [typing, setTyping] = useState(false);
+  const scenario = SCENARIOS[scenarioKey];
+  const visibleSteps = scenario.steps.slice(0, stepIndex);
+  const nextStep = scenario.steps[stepIndex];
+  const scrollRef = useAutoScroll(stepIndex + (typing ? 1 : 0));
+
+  function switchScenario(key) { setScenarioKey(key); setStepIndex(0); setTyping(false); }
+  function advance() {
+    if (!nextStep) return;
+    if (nextStep.from === "bot" || nextStep.from === "human") {
+      setTyping(true);
+      setTimeout(() => { setTyping(false); setStepIndex(i => i + 1); }, 550);
+    } else { setStepIndex(i => i + 1); }
+  }
+  function pickChoice() { setStepIndex(i => i + 1); }
+
+  const isDone = stepIndex >= scenario.steps.length;
+  const lastBotButtons = visibleSteps.length > 0 && visibleSteps[visibleSteps.length-1].from === "bot" && visibleSteps[visibleSteps.length-1].buttons;
+
+  return <div className="min-h-screen w-full flex flex-col items-center py-10 px-4" style={{background:T.bg}}>
+    <div className="w-full max-w-5xl mb-8 text-center">
+      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-semibold tracking-wide uppercase mb-4" style={{background:"#0E3F3D0D", color:T.teal}}>
+        <span className="w-1.5 h-1.5 rounded-full" style={{background:T.amber}} />
+        Pilot demo — multi-specialty booking on WhatsApp
+      </div>
+      <h1 className="display-font text-[26px] sm:text-[36px] font-semibold tracking-tight" style={{color:T.ink}}>What Rift View patients will actually experience</h1>
+      <p className="mt-2 text-[14.5px]" style={{color:T.inkSoft}}>Click through real scenarios — routing patients to the right specialist automatically, flexible scheduling, a waitlist that fills cancelled slots, and emergency handoff to a real doctor.</p>
+    </div>
+
+    <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-[240px_360px_1fr] gap-6">
+      <div className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0">
+        {Object.entries(SCENARIOS).map(([key, s]) => (
+          <button key={key} onClick={() => switchScenario(key)} className="flex items-center gap-3 text-left rounded-xl px-4 py-3 shrink-0 transition-all"
+            style={{background: scenarioKey===key ? T.teal : T.card, color: scenarioKey===key ? "#fff" : T.ink, border:`1px solid ${scenarioKey===key ? T.teal : T.line}`, minWidth:220}}>
+            <span className="text-lg">{s.icon}</span>
+            <span className="text-[13.5px] font-medium">{s.label}</span>
+          </button>
+        ))}
+        <div className="hidden lg:block mt-4 rounded-xl px-4 py-4" style={{background:T.card, border:`1px solid ${T.line}`}}>
+          <p className="text-[11.5px] font-semibold uppercase tracking-wide mb-2" style={{color:T.tealMid}}>Built for multi-specialty centres</p>
+          <p className="text-[12.5px] leading-relaxed" style={{color:T.inkSoft}}>Each department (Radiology, Ophthalmology, Gynaecology...) routes automatically to the right specialist — no confusion, no extra step when only one doctor covers that department.</p>
+        </div>
+      </div>
+
+      <div className="mx-auto">
+        <div className="rounded-[36px] p-2.5 shadow-xl" style={{background:"#0B1210", width:340}}>
+          <div className="rounded-[28px] overflow-hidden" style={{background:"#0B141A", height:640}}>
+            <div className="flex items-center gap-2 px-3 py-3" style={{background:"#1F2C34"}}>
+              <ChevronLeft size={18} color="#fff" />
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold" style={{background:"#0E3F3D", color:"#fff"}}>RV</div>
+              <div className="flex-1">
+                <p className="text-[13px] font-semibold text-white leading-tight">{CLINIC}</p>
+                <p className="text-[10.5px]" style={{color:"#8FA69E"}}>{typing ? "typing…" : "online"}</p>
+              </div>
+              <Video size={16} color="#fff" style={{marginRight:8}} />
+              <PhoneIcon size={15} color="#fff" style={{marginRight:8}} />
+              <MoreVertical size={16} color="#fff" />
+            </div>
+            <div ref={scrollRef} className="px-2 py-3 overflow-y-auto" style={{height:640-56-52, background:"#0B141A"}}>
+              {visibleSteps.length === 0 && !typing && (
+                <div className="h-full flex flex-col items-center justify-center text-center px-6">
+                  <p className="text-[12.5px]" style={{color:"#6E827B"}}>Tap "Start conversation" below to play this scenario.</p>
+                </div>
+              )}
+              {visibleSteps.map((s, i) => <Bubble key={i} step={s} />)}
+              {typing && (
+                <div className="flex justify-start mb-2 px-1">
+                  <div className="rounded-lg px-3 py-2.5" style={{background:"#fff"}}>
+                    <div className="flex gap-1">
+                      {[0,1,2].map(d => <span key={d} className="w-1.5 h-1.5 rounded-full dot-bounce" style={{background:"#8fa69e", animationDelay:`${d*0.12}s`}} />)}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {!typing && lastBotButtons && (
+                <div className="flex flex-col gap-1.5 mt-1 px-1">
+                  {lastBotButtons.map(label => (
+                    <button key={label} onClick={() => pickChoice(label)} className="text-[12.5px] font-medium rounded-lg py-2 text-center border transition-colors" style={{color:"#25D366", borderColor:"#25D36655", background:"#0B141A"}}>{label}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-2 px-2 py-2" style={{background:"#1F2C34"}}>
+              <Smile size={18} color="#8FA69E" />
+              <div className="flex-1 rounded-full px-3 py-1.5 text-[12px]" style={{background:"#2A3942", color:"#8FA69E"}}>Message</div>
+              <Paperclip size={16} color="#8FA69E" />
+              <Mic size={16} color="#8FA69E" />
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center justify-center gap-3 mt-5">
+          <button onClick={() => switchScenario(scenarioKey)} className="flex items-center gap-1.5 text-[12.5px] font-medium px-3 py-2 rounded-lg" style={{color:T.inkSoft, border:`1px solid ${T.line}`, background:T.card}}>
+            <RotateCcw size={13} /> Restart
+          </button>
+          {!lastBotButtons && !isDone && (
+            <button onClick={advance} disabled={typing} className="flex items-center gap-1.5 text-[12.5px] font-semibold px-4 py-2 rounded-lg text-white" style={{background:T.teal, opacity:typing?0.6:1}}>
+              <Play size={13} /> {stepIndex === 0 ? "Start conversation" : "Next"}
+            </button>
+          )}
+          {isDone && <span className="text-[12.5px] font-medium" style={{color:T.tealMid}}>Scenario complete ✓</span>}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-4">
+        <div className="rounded-xl p-5" style={{background:T.card, border:`1px solid ${T.line}`}}>
+          <p className="display-font text-[15px] font-semibold mb-1" style={{color:T.ink}}>{scenario.icon} {scenario.label}</p>
+          <p className="text-[13px] leading-relaxed" style={{color:T.inkSoft}}>
+            {scenarioKey==="multispecialty" && "A patient picks a specialty, not a specific doctor's name — the system automatically routes to whichever specialist covers that department, with zero extra questions when there's only one."}
+            {scenarioKey==="customtime" && "If none of the auto-suggested times work, a patient can just type any day and time in plain English — checked against the real doctor's actual hours and calendar before being accepted."}
+            {scenarioKey==="waitlist" && "No missed revenue from a cancelled slot — the next patient in line gets an automatic offer the moment it opens up, with a real booking created the second they accept."}
+            {scenarioKey==="emergency" && "The bot never attempts clinical advice. It detects urgency, stays calm, and hands the conversation to a real doctor immediately — with a real alert sent instantly, not just logged."}
+          </p>
+        </div>
+
+        <div className="rounded-xl p-5" style={{background:T.teal}}>
+          <p className="text-[11.5px] font-semibold uppercase tracking-wide mb-2" style={{color:"#B7D6D1"}}>
+            <Users size={13} style={{display:"inline", marginRight:4, verticalAlign:"-2px"}} />
+            Why this fits a multi-specialty centre
+          </p>
+          <ul className="space-y-2 text-[13px]" style={{color:"#EFF7F5"}}>
+            <li className="flex gap-2"><Check size={15} className="shrink-0 mt-0.5" /> Each specialist's real calendar stays their own — no double-booking across departments</li>
+            <li className="flex gap-2"><Check size={15} className="shrink-0 mt-0.5" /> Patients never need to know which doctor covers which department — the bot knows</li>
+            <li className="flex gap-2"><Check size={15} className="shrink-0 mt-0.5" /> One front-desk login manages every specialist's hours and services</li>
+            <li className="flex gap-2"><AlertTriangle size={15} className="shrink-0 mt-0.5" style={{color:T.amber}} /> Emergencies always reach a real doctor immediately</li>
+          </ul>
+        </div>
+
+        <div className="rounded-xl p-5" style={{background:"#FFF8EC", border:"1px solid #F0DFAF"}}>
+          <p className="text-[11.5px] font-semibold uppercase tracking-wide mb-2" style={{color:"#8A5A12"}}>Note for this demo</p>
+          <p className="text-[12.5px] leading-relaxed" style={{color:"#6B4A15"}}>Specialist names shown here are illustrative placeholders for this walkthrough — real staff, departments, and hours would be set up directly in the dashboard once onboarded, in minutes.</p>
+        </div>
+      </div>
+    </div>
+  </div>;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
