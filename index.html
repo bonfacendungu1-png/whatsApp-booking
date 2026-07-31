@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>Hifadhi — WhatsApp Booking Demo for Bright Smile Dental</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { margin:0; font-family:'Inter', ui-sans-serif, system-ui; }
+  .display-font { font-family:'Space Grotesk', ui-sans-serif, system-ui; }
+  @keyframes bounce2 { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-4px)} }
+  .dot-bounce { animation: bounce2 1s infinite; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+const Icon = ({ children, size=16, color="currentColor", style={} }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
+       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>{children}</svg>
+);
+const CheckCheck = (p) => <Icon {...p}><polyline points="18 6 7 17 2 12"/><polyline points="22 10 11 21 7 17"/></Icon>;
+const ChevronLeft = (p) => <Icon {...p}><polyline points="15 18 9 12 15 6"/></Icon>;
+const MoreVertical = (p) => <Icon {...p}><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></Icon>;
+const Video = (p) => <Icon {...p}><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></Icon>;
+const PhoneIcon = (p) => <Icon {...p}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></Icon>;
+const Send = (p) => <Icon {...p}><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></Icon>;
+const AlertTriangle = (p) => <Icon {...p}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></Icon>;
+const RotateCcw = (p) => <Icon {...p}><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></Icon>;
+const Play = (p) => <Icon {...p}><polygon points="5 3 19 12 5 21 5 3"/></Icon>;
+const Users = (p) => <Icon {...p}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></Icon>;
+
+const T = { bg:"#F6F8F7", ink:"#132422", inkSoft:"#54655F", teal:"#0E3F3D", tealMid:"#1E6B63", amber:"#E2A23B", line:"#E1E7E4", card:"#FFFFFF" };
+const CLINIC = "Bright Smile Dental — Kilimani";
+
+// Matches the real seeded category/service structure, plain-language,
+// no invented prices shown (matches show_prices_in_chat defaulting off).
+const CATEGORIES = {
+  "Checkups & Cleaning": {
+    services: [
+      { name: "Dental Checkup", note: "General checkup & consultation" },
+      { name: "Teeth Cleaning", note: "Removes plaque & stains" },
+    ],
+  },
+  "Fillings & Repairs": {
+    services: [
+      { name: "Tooth Filling", note: "For a cavity or hole in a tooth" },
+      { name: "Root Canal", note: "For a badly damaged or infected tooth" },
+    ],
+  },
+  "Smile & Whitening": {
+    services: [
+      { name: "Teeth Whitening", note: null },
+      { name: "Chipped Tooth Repair", note: "Bonding" },
+    ],
+  },
+  "Braces & Aligners": {
+    services: [
+      { name: "Braces Consultation", note: "Teeth straightening" },
+      { name: "Clear Aligners", note: "Invisible braces - consultation" },
+    ],
+  },
+};
+
+const DENTISTS = ["Dr. Achieng", "Dr. Otieno"];
+const SLOTS = ["Tue 5 Aug · 9:00 AM", "Tue 5 Aug · 2:30 PM", "Wed 6 Aug · 11:00 AM"];
+const LOCATION = "Kilimani branch";
+
+const EMERGENCY_SCRIPT = [
+  { from:"client", text:"I have severe tooth pain and swelling, please help!!" },
+  { from:"system", text:"Emergency keywords detected → escalation triggered · bot paused for this chat." },
+  { from:"bot", text:"I'm really sorry you're in pain. I'm connecting you with our on-call dentist right now — please hold for a moment." },
+  { from:"system", text:"Real WhatsApp alert sent instantly to the clinic's emergency contact number." },
+  { from:"human", text:"🧑🏾‍⚕️ Dr. Otieno joined the conversation" },
+  { from:"human", text:"Hi, this is Dr. Otieno. Sorry you're going through this — on a scale of 1 to 10, how bad is the pain right now?" },
+];
+
+/* ---------- shared chat primitives ---------- */
+function useAutoScroll(dep) {
+  const ref = useRef(null);
+  useEffect(() => { if (ref.current) ref.current.scrollTop = ref.current.scrollHeight; }, [dep]);
+  return ref;
+}
+
+function Bubble({ msg }) {
+  if (msg.from === "system") {
+    return <div className="flex justify-center my-3">
+      <div className="text-[11px] px-3 py-1.5 rounded-full max-w-[85%] text-center leading-snug" style={{background:"#EAF3E8", color:"#4B5F52"}}>{msg.text}</div>
+    </div>;
+  }
+  const isClient = msg.from === "client";
+  const isHumanJoin = msg.from === "human" && msg.text.startsWith("🧑");
+  if (isHumanJoin) {
+    return <div className="flex justify-center my-3">
+      <div className="text-[11px] px-3 py-1.5 rounded-full max-w-[85%] text-center" style={{background:"#FFF3DE", color:"#8A5A12"}}>{msg.text}</div>
+    </div>;
+  }
+  const bubbleBg = isClient ? "#DCF8C6" : msg.from === "human" ? "#FFF9E7" : "#FFFFFF";
+  return <div className={`flex ${isClient ? "justify-end" : "justify-start"} mb-2 px-1`}>
+    <div className="max-w-[78%] rounded-lg px-3 py-2 text-[13.5px] leading-snug shadow-sm whitespace-pre-line" style={{background:bubbleBg, color:"#111B21"}}>
+      {msg.from === "human" && <div className="text-[11px] font-semibold mb-0.5" style={{color:T.tealMid}}>Dr. Otieno · on-call dentist</div>}
+      {msg.text}
+      <div className="flex items-center justify-end gap-1 mt-1 -mb-1">
+        <span className="text-[10px]" style={{color:"#7A8A85"}}>2:41 PM</span>
+        {isClient && <CheckCheck size={13} color="#53BDEB" />}
+      </div>
+    </div>
+  </div>;
+}
+
+function Phone({ children, typing }) {
+  return <div className="rounded-[36px] p-2.5 shadow-xl" style={{background:"#0B1210", width:340}}>
+    <div className="rounded-[28px] overflow-hidden" style={{background:"#0B141A", height:640}}>
+      <div className="flex items-center gap-2 px-3 py-3" style={{background:"#1F2C34"}}>
+        <ChevronLeft size={18} color="#fff" />
+        <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold" style={{background:"#0E3F3D", color:"#fff"}}>BS</div>
+        <div className="flex-1">
+          <p className="text-[13px] font-semibold text-white leading-tight">{CLINIC}</p>
+          <p className="text-[10.5px]" style={{color:"#8FA69E"}}>{typing ? "typing…" : "online"}</p>
+        </div>
+        <Video size={16} color="#fff" style={{marginRight:8}} />
+        <PhoneIcon size={15} color="#fff" style={{marginRight:8}} />
+        <MoreVertical size={16} color="#fff" />
+      </div>
+      {children}
+    </div>
+  </div>;
+}
+
+function useEngine() {
+  const [transcript, setTranscript] = useState([]);
+  const [buttons, setButtons] = useState(null);
+  const [typing, setTyping] = useState(false);
+  const [textInput, setTextInput] = useState("");
+  const [textPlaceholder, setTextPlaceholder] = useState("Message");
+  const [textActive, setTextActive] = useState(false);
+  const scrollRef = useAutoScroll(transcript.length + (typing ? 1 : 0));
+
+  function pushClient(text) { setTranscript((t) => [...t, { from: "client", text }]); }
+  function pushSystem(text) { setTranscript((t) => [...t, { from: "system", text }]); }
+  function pushBotThen(text, nextButtons) {
+    setTyping(true);
+    setTimeout(() => {
+      setTyping(false);
+      setTranscript((t) => [...t, { from: "bot", text }]);
+      setButtons(nextButtons || null);
+    }, 550);
+  }
+  function reset() {
+    setTranscript([]); setButtons(null); setTyping(false); setTextInput(""); setTextActive(false);
+  }
+
+  return { transcript, buttons, setButtons, typing, textInput, setTextInput, textPlaceholder, setTextPlaceholder, textActive, setTextActive, scrollRef, pushClient, pushSystem, pushBotThen, reset };
+}
+
+function ChatWindow({ engine, onSubmitText, startLabel, onStart, started, done }) {
+  const { transcript, buttons, typing, textInput, setTextInput, textPlaceholder, textActive, scrollRef } = engine;
+  return <>
+    <Phone typing={typing}>
+      <div ref={scrollRef} className="px-2 py-3 overflow-y-auto" style={{height:640-56-52, background:"#0B141A"}}>
+        {transcript.length === 0 && !typing && (
+          <div className="h-full flex flex-col items-center justify-center text-center px-6">
+            <p className="text-[12.5px]" style={{color:"#6E827B"}}>Tap "{startLabel}" below to begin.</p>
+          </div>
+        )}
+        {transcript.map((m, i) => <Bubble key={i} msg={m} />)}
+        {typing && (
+          <div className="flex justify-start mb-2 px-1">
+            <div className="rounded-lg px-3 py-2.5" style={{background:"#fff"}}>
+              <div className="flex gap-1">
+                {[0,1,2].map(d => <span key={d} className="w-1.5 h-1.5 rounded-full dot-bounce" style={{background:"#8fa69e", animationDelay:`${d*0.12}s`}} />)}
+              </div>
+            </div>
+          </div>
+        )}
+        {!typing && buttons && (
+          <div className="flex flex-col gap-1.5 mt-1 px-1">
+            {buttons.map((b, i) => (
+              <button key={i} onClick={() => { engine.setButtons(null); b.action(); }} className="text-[12.5px] font-medium rounded-lg py-2 text-center border transition-colors" style={{color:"#25D366", borderColor:"#25D36655", background:"#0B141A"}}>{b.label}</button>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="flex items-center gap-2 px-2 py-2" style={{background:"#1F2C34"}}>
+        <input
+          value={textInput}
+          onChange={(e) => setTextInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && textActive) onSubmitText(); }}
+          disabled={!textActive}
+          placeholder={textActive ? textPlaceholder : "Message"}
+          className="flex-1 rounded-full px-3 py-1.5 text-[12px] outline-none"
+          style={{background:"#2A3942", color: textActive ? "#fff" : "#8FA69E"}}
+        />
+        {textActive && <button onClick={onSubmitText}><Send size={16} color="#25D366" /></button>}
+      </div>
+    </Phone>
+    <div className="flex items-center justify-center gap-3 mt-5">
+      <button onClick={() => { engine.reset(); onStart(true); }} className="flex items-center gap-1.5 text-[12.5px] font-medium px-3 py-2 rounded-lg" style={{color:T.inkSoft, border:`1px solid ${T.line}`, background:T.card}}>
+        <RotateCcw size={13} /> Restart
+      </button>
+      {!started && (
+        <button onClick={() => onStart(false)} className="flex items-center gap-1.5 text-[12.5px] font-semibold px-4 py-2 rounded-lg text-white" style={{background:T.teal}}>
+          <Play size={13} /> {startLabel}
+        </button>
+      )}
+      {done && <span className="text-[12.5px] font-medium" style={{color:T.tealMid}}>Scenario complete ✓</span>}
+    </div>
+  </>;
+}
+
+/* ---------- shared booking mechanics: category → service → dentist → slot → confirm ---------- */
+function useBookingFlow(engine, patientName) {
+  const [ctx, setCtx] = useState({});
+  const [done, setDone] = useState(false);
+
+  function askCategory(intro) {
+    const cats = Object.keys(CATEGORIES);
+    engine.pushBotThen(intro, cats.map((c, i) => ({ label: `${i+1}. ${c}`, action: () => chooseCategory(c) })));
+  }
+
+  function chooseCategory(cat) {
+    engine.pushClient(cat);
+    const services = CATEGORIES[cat].services;
+    engine.pushBotThen(`${cat} — which service?`, services.map((s, i) => ({
+      label: `${i+1}. ${s.name}${s.note ? " — " + s.note : ""}`, action: () => chooseService(s.name),
+    })));
+  }
+
+  function chooseService(serviceName) {
+    engine.pushClient(serviceName);
+    setCtx((c) => ({ ...c, service: serviceName }));
+    engine.pushBotThen("Any dentist preference?", [
+      ...DENTISTS.map((d) => ({ label: d, action: () => chooseDentist(serviceName, d) })),
+      { label: "No preference", action: () => chooseDentist(serviceName, DENTISTS[0]) },
+    ]);
+  }
+
+  function showSlots(serviceName, dentist) {
+    const slotButtons = SLOTS.map((s) => ({ label: s, action: () => chooseSlot(serviceName, dentist, s) }));
+    slotButtons.push({ label: "📅 Different day/time", action: () => askCustomTime(serviceName, dentist) });
+    slotButtons.push({ label: "🕐 Notify me if sooner opens", action: () => joinWaitlist(serviceName, dentist) });
+    engine.pushBotThen(`Here's what's open with ${dentist}:`, slotButtons);
+  }
+
+  function chooseDentist(serviceName, dentist) {
+    engine.pushClient(dentist === DENTISTS[0] ? dentist : dentist);
+    engine.pushSystem("Checking live calendar for real availability…");
+    setCtx((c) => ({ ...c, dentist }));
+    showSlots(serviceName, dentist);
+  }
+
+  function chooseSlot(serviceName, dentist, slot) {
+    engine.pushClient(slot);
+    engine.pushSystem(`Slot validated against ${dentist}'s real calendar — free and confirmed.`);
+    confirmScreen(serviceName, dentist, slot);
+  }
+
+  function confirmScreen(serviceName, dentist, slot) {
+    engine.pushBotThen(
+      `Confirming:\n🦷 ${serviceName}\n${dentist}\n📅 ${slot}\n📍 ${LOCATION}`,
+      [
+        { label: "Confirm booking", action: () => finalizeBooking(serviceName, dentist, slot) },
+        { label: "Change time", action: () => showSlots(serviceName, dentist) },
+      ]
+    );
+  }
+
+  function finalizeBooking(serviceName, dentist, slot) {
+    engine.pushClient("Confirm booking");
+    engine.pushSystem("Booking saved · real event created on the dentist's calendar.");
+    const greet = patientName ? `${patientName}, you're` : "You're";
+    engine.pushBotThen(`${greet} all set! ✅ ${serviceName} with ${dentist}, ${slot}. We'll remind you before your visit.`, null);
+    setDone(true);
+  }
+
+  function askCustomTime(serviceName, dentist) {
+    engine.pushClient("📅 Different day/time");
+    engine.pushBotThen("What day and time would you like? Type it below, e.g. 'Friday 2pm'.", null);
+    engine.setTextPlaceholder("Type a day and time...");
+    engine.setTextActive(true);
+    setCtx((c) => ({ ...c, pendingService: serviceName, pendingDentist: dentist, awaitingCustom: true }));
+  }
+
+  function submitCustomTime(typed) {
+    engine.pushClient(typed);
+    engine.setTextActive(false);
+    engine.pushSystem(`Checked against ${ctx.pendingDentist}'s real hours and existing bookings — free.`);
+    confirmScreen(ctx.pendingService, ctx.pendingDentist, typed);
+  }
+
+  function joinWaitlist(serviceName, dentist) {
+    engine.pushClient("🕐 Notify me if sooner opens");
+    engine.pushSystem(`Added to ${dentist}'s waitlist for ${serviceName}.`);
+    engine.pushBotThen("You're on the list! We'll message you the moment an earlier slot opens up.",
+      [{ label: "▶ Simulate: an earlier slot opens up", action: () => waitlistOffer(serviceName, dentist) }]
+    );
+  }
+
+  function waitlistOffer(serviceName, dentist) {
+    engine.pushSystem("— 2 days later, another patient cancels their slot —");
+    const freedSlot = "Mon 4 Aug · 10:30 AM";
+    engine.pushBotThen(
+      `Good news! An earlier slot just opened up: ${serviceName} with ${dentist}, ${freedSlot}. Want it?`,
+      [
+        { label: "Yes, book it", action: () => { engine.pushClient("Yes, book it"); engine.pushSystem("Re-checked slot is still free · real booking created instantly."); engine.pushBotThen(`You're all set! ✅ ${serviceName} with ${dentist}, ${freedSlot}.`, null); setDone(true); } },
+        { label: "No thanks", action: () => { engine.pushClient("No thanks"); engine.pushBotThen("No problem, thanks for letting us know!", null); setDone(true); } },
+      ]
+    );
+  }
+
+  return { ctx, done, askCategory, submitCustomTime, isAwaitingCustom: !!ctx.awaitingCustom && engine.textActive };
+}
+
+/* ---------- Tab 1: New patient — name & age intake, then full booking ---------- */
+function NewPatientTab() {
+  const engine = useEngine();
+  const [started, setStarted] = useState(false);
+  const [stage, setStage] = useState("name");
+  const [name, setName] = useState("");
+  const flow = useBookingFlow(engine, name);
+
+  function start(isRestart) {
+    setStarted(false); setStage("name"); setName("");
+    if (isRestart) return;
+    setStarted(true);
+    engine.pushClient("Hi, I'd like to book a dental appointment");
+    engine.pushBotThen(`Hi! I'm Hifadhi, ${CLINIC}'s booking assistant 👋 Before we get started, may I have your name?`, null);
+    engine.setTextPlaceholder("Type your name...");
+    engine.setTextActive(true);
+    setStage("name");
+  }
+
+  function submitText() {
+    const typed = engine.textInput.trim();
+    if (!typed) return;
+    engine.setTextInput("");
+    if (stage === "name") {
+      engine.pushClient(typed);
+      setName(typed);
+      engine.pushBotThen(`Thanks, ${typed}! And may I ask your age?`, null);
+      engine.setTextPlaceholder("Type your age...");
+      setStage("age");
+    } else if (stage === "age") {
+      engine.pushClient(typed);
+      engine.setTextActive(false);
+      engine.pushSystem(`New patient record created: ${name}, age ${typed}.`);
+      setStage("booking");
+      flow.askCategory("What kind of service do you need?");
+    } else if (flow.isAwaitingCustom) {
+      flow.submitCustomTime(typed);
+    }
+  }
+
+  return <div className="mx-auto">
+    <ChatWindow engine={engine} onSubmitText={submitText} startLabel="Start conversation" onStart={start} started={started} done={flow.done} />
+  </div>;
+}
+
+/* ---------- Tab 2: Returning patient — recognized instantly, rebook or numbered replies ---------- */
+function ReturningPatientTab() {
+  const engine = useEngine();
+  const [started, setStarted] = useState(false);
+  const flow = useBookingFlow(engine, "Jane");
+
+  function start(isRestart) {
+    setStarted(false);
+    if (isRestart) return;
+    setStarted(true);
+    engine.pushClient("Hi");
+    engine.pushSystem("Phone number recognized instantly: Jane Wanjiru · 4th visit · last seen 6 months ago.");
+    engine.pushBotThen(
+      "Welcome back, Jane! 👋 It's Hifadhi again — it's been 6 months since your last cleaning with Dr. Achieng. Book the same again?",
+      [
+        { label: "1. Yes, same as before", action: () => rebookSame() },
+        { label: "2. Something else", action: () => somethingElse() },
+        { label: "3. Talk to a person", action: () => talkToPerson() },
+      ]
+    );
+  }
+
+  function rebookSame() {
+    engine.pushClient("Yes, same as before");
+    engine.pushSystem("Booking linked to existing patient profile — no new form needed.");
+    engine.pushBotThen("Here's what's open with Dr. Achieng:", [
+      { label: "Thu 7 Aug · 10:00 AM", action: () => { engine.pushClient("Thu 7 Aug · 10:00 AM"); engine.pushSystem("Slot validated — free and confirmed."); engine.pushBotThen("You're all set! ✅ Teeth Cleaning with Dr. Achieng, Thu 7 Aug, 10:00 AM.", null); } },
+      { label: "Fri 8 Aug · 3:00 PM", action: () => { engine.pushClient("Fri 8 Aug · 3:00 PM"); engine.pushSystem("Slot validated — free and confirmed."); engine.pushBotThen("You're all set! ✅ Teeth Cleaning with Dr. Achieng, Fri 8 Aug, 3:00 PM.", null); } },
+    ]);
+  }
+
+  function somethingElse() {
+    engine.pushClient("2");
+    engine.pushSystem("Typed reply matched to option 2: 'Something else'.");
+    flow.askCategory("No problem — what kind of service do you need? (you can type a number instead of tapping too)");
+  }
+
+  function talkToPerson() {
+    engine.pushClient("Talk to a person");
+    engine.pushSystem("Escalated · bot paused for this chat.");
+    engine.pushBotThen("Of course — connecting you with a team member now. Someone will be with you shortly.", null);
+  }
+
+  function submitText() {
+    const typed = engine.textInput.trim();
+    if (!typed) return;
+    engine.setTextInput("");
+    if (flow.isAwaitingCustom) flow.submitCustomTime(typed);
+  }
+
+  return <div className="mx-auto">
+    <ChatWindow engine={engine} onSubmitText={submitText} startLabel="Start conversation" onStart={start} started={started} done={flow.done} />
+  </div>;
+}
+
+/* ---------- Tab 3: Reminders + reschedule/cancel anytime ---------- */
+function RemindersTab() {
+  const engine = useEngine();
+  const [started, setStarted] = useState(false);
+  const [done, setDone] = useState(false);
+  const EXAMPLE = { service: "Root Canal", dentist: "Dr. Otieno", when: "Thu 7 Aug, 2:30 PM" };
+
+  function start(isRestart) {
+    setStarted(false); setDone(false);
+    if (isRestart) return;
+    setStarted(true);
+    engine.pushBotThen(
+      "Two ways this can start — pick one to see:",
+      [
+        { label: "▶ An automated reminder arrives (24h before)", action: () => reminderArrives() },
+        { label: "▶ Patient messages out of the blue to reschedule", action: () => selfServiceAnytime() },
+      ]
+    );
+  }
+
+  function reminderArrives() {
+    engine.pushSystem("Automated reminder fires 24 hours before the appointment.");
+    engine.pushBotThen(
+      `Hi, reminder: your appointment is tomorrow, ${EXAMPLE.when} with ${EXAMPLE.dentist} (${EXAMPLE.service}). 📍 ${LOCATION}`,
+      [
+        { label: "Confirm", action: () => confirmAttendance() },
+        { label: "Reschedule", action: () => reschedule() },
+        { label: "Cancel", action: () => cancelBooking() },
+      ]
+    );
+  }
+
+  function selfServiceAnytime() {
+    engine.pushClient("I need to reschedule my appointment");
+    engine.pushSystem(`Found upcoming booking: ${EXAMPLE.service} with ${EXAMPLE.dentist}, ${EXAMPLE.when}.`);
+    engine.pushBotThen(
+      `You have an upcoming booking: ${EXAMPLE.service} with ${EXAMPLE.dentist}, ${EXAMPLE.when}. What would you like to do?`,
+      [
+        { label: "Keep it as is", action: () => confirmAttendance() },
+        { label: "Reschedule", action: () => reschedule() },
+        { label: "Cancel", action: () => cancelBooking() },
+      ]
+    );
+  }
+
+  function confirmAttendance() {
+    engine.pushClient("Confirm");
+    engine.pushBotThen("Great, see you then! ✅", null);
+    setDone(true);
+  }
+
+  function reschedule() {
+    engine.pushClient("Reschedule");
+    engine.pushBotThen("No problem — here's what's open instead:", [
+      { label: "Fri 8 Aug · 9:30 AM", action: () => { engine.pushClient("Fri 8 Aug · 9:30 AM"); engine.pushSystem("Existing booking updated · calendar event moved, not duplicated."); engine.pushBotThen("Done ✅ Moved to Fri 8 Aug, 9:30 AM. See you then!", null); setDone(true); } },
+      { label: "Fri 8 Aug · 1:00 PM", action: () => { engine.pushClient("Fri 8 Aug · 1:00 PM"); engine.pushSystem("Existing booking updated · calendar event moved, not duplicated."); engine.pushBotThen("Done ✅ Moved to Fri 8 Aug, 1:00 PM. See you then!", null); setDone(true); } },
+    ]);
+  }
+
+  function cancelBooking() {
+    engine.pushClient("Cancel");
+    engine.pushSystem("Booking cancelled · calendar event removed.");
+    engine.pushSystem("Next patient on Dr. Otieno's waitlist automatically notified of the freed slot.");
+    engine.pushBotThen("Your booking has been cancelled. Let us know anytime if you'd like to rebook.", null);
+    setDone(true);
+  }
+
+  return <div className="mx-auto">
+    <ChatWindow engine={engine} onSubmitText={() => {}} startLabel="Start conversation" onStart={start} started={started} done={done} />
+  </div>;
+}
+
+/* ---------- Tab 4: Emergency (fixed escalation, not a decision tree) ---------- */
+function EmergencyScenario() {
+  const [stepIndex, setStepIndex] = useState(0);
+  const [typing, setTyping] = useState(false);
+  const scrollRef = useAutoScroll(stepIndex + (typing ? 1 : 0));
+  const visible = EMERGENCY_SCRIPT.slice(0, stepIndex);
+  const next = EMERGENCY_SCRIPT[stepIndex];
+  const isDone = stepIndex >= EMERGENCY_SCRIPT.length;
+
+  function advance() {
+    if (!next) return;
+    if (next.from === "bot" || next.from === "human") {
+      setTyping(true);
+      setTimeout(() => { setTyping(false); setStepIndex((i) => i + 1); }, 550);
+    } else { setStepIndex((i) => i + 1); }
+  }
+  function restart() { setStepIndex(0); setTyping(false); }
+
+  return <div className="mx-auto">
+    <Phone typing={typing}>
+      <div ref={scrollRef} className="px-2 py-3 overflow-y-auto" style={{height:640-56-52, background:"#0B141A"}}>
+        {visible.length === 0 && !typing && (
+          <div className="h-full flex flex-col items-center justify-center text-center px-6">
+            <p className="text-[12.5px]" style={{color:"#6E827B"}}>Tap "Start conversation" below to play this scenario.</p>
+          </div>
+        )}
+        {visible.map((m, i) => <Bubble key={i} msg={m} />)}
+        {typing && (
+          <div className="flex justify-start mb-2 px-1">
+            <div className="rounded-lg px-3 py-2.5" style={{background:"#fff"}}>
+              <div className="flex gap-1">
+                {[0,1,2].map(d => <span key={d} className="w-1.5 h-1.5 rounded-full dot-bounce" style={{background:"#8fa69e", animationDelay:`${d*0.12}s`}} />)}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="flex items-center gap-2 px-2 py-2" style={{background:"#1F2C34"}}>
+        <div className="flex-1 rounded-full px-3 py-1.5 text-[12px]" style={{background:"#2A3942", color:"#8FA69E"}}>Message</div>
+      </div>
+    </Phone>
+    <div className="flex items-center justify-center gap-3 mt-5">
+      <button onClick={restart} className="flex items-center gap-1.5 text-[12.5px] font-medium px-3 py-2 rounded-lg" style={{color:T.inkSoft, border:`1px solid ${T.line}`, background:T.card}}>
+        <RotateCcw size={13} /> Restart
+      </button>
+      {!isDone && (
+        <button onClick={advance} disabled={typing} className="flex items-center gap-1.5 text-[12.5px] font-semibold px-4 py-2 rounded-lg text-white" style={{background:T.teal, opacity:typing?0.6:1}}>
+          <Play size={13} /> {stepIndex === 0 ? "Start conversation" : "Next"}
+        </button>
+      )}
+      {isDone && <span className="text-[12.5px] font-medium" style={{color:T.tealMid}}>Scenario complete ✓</span>}
+    </div>
+  </div>;
+}
+
+const TABS = [
+  { key:"new", icon:"🆕", label:"New patient (name & age intake)", blurb:"Every first-time patient is asked their name and age once, then never again — before anything about booking comes up." },
+  { key:"returning", icon:"🔁", label:"Returning patient & numbered replies", blurb:"Recognized instantly by phone number, offered their usual booking again, and shown that typing a number works exactly like tapping a button." },
+  { key:"reminders", icon:"⏰", label:"Reminders & reschedule anytime", blurb:"A 24-hour reminder with real Confirm/Reschedule/Cancel — or a patient can message out of the blue anytime, not just when a reminder arrives." },
+  { key:"emergency", icon:"🚨", label:"Emergency & human handoff", blurb:"The bot never attempts clinical advice. It detects urgency, stays calm, and hands off to a real dentist immediately — with a real alert sent instantly." },
+];
+
+function App() {
+  const [tab, setTab] = useState("new");
+  const active = TABS.find((t) => t.key === tab);
+
+  return <div className="min-h-screen w-full flex flex-col items-center py-10 px-4" style={{background:T.bg}}>
+    <div className="w-full max-w-5xl mb-8 text-center">
+      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-semibold tracking-wide uppercase mb-4" style={{background:"#0E3F3D0D", color:T.teal}}>
+        <span className="w-1.5 h-1.5 rounded-full" style={{background:T.amber}} />
+        Hifadhi pilot demo — dental clinic booking on WhatsApp
+      </div>
+      <h1 className="display-font text-[26px] sm:text-[36px] font-semibold tracking-tight" style={{color:T.ink}}>What your patients will actually experience</h1>
+      <p className="mt-2 text-[14.5px]" style={{color:T.inkSoft}}>Four real scenarios, each genuinely interactive — try typing instead of tapping, restart and choose differently, type your own day and time.</p>
+    </div>
+
+    <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-[260px_360px_1fr] gap-6">
+      <div className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0">
+        {TABS.map((t) => (
+          <button key={t.key} onClick={() => setTab(t.key)} className="flex items-center gap-3 text-left rounded-xl px-4 py-3 shrink-0 transition-all"
+            style={{background: tab===t.key ? T.teal : T.card, color: tab===t.key ? "#fff" : T.ink, border:`1px solid ${tab===t.key ? T.teal : T.line}`, minWidth:240}}>
+            <span className="text-lg">{t.icon}</span>
+            <span className="text-[13.5px] font-medium">{t.label}</span>
+          </button>
+        ))}
+        <div className="hidden lg:block mt-4 rounded-xl px-4 py-4" style={{background:T.card, border:`1px solid ${T.line}`}}>
+          <p className="text-[11.5px] font-semibold uppercase tracking-wide mb-2" style={{color:T.tealMid}}>Plain language, not jargon</p>
+          <p className="text-[12.5px] leading-relaxed" style={{color:T.inkSoft}}>Categories like "Fillings & Repairs" instead of clinical terms — built for real patients, not dental students.</p>
+        </div>
+      </div>
+
+      {tab === "new" && <NewPatientTab key="new" />}
+      {tab === "returning" && <ReturningPatientTab key="returning" />}
+      {tab === "reminders" && <RemindersTab key="reminders" />}
+      {tab === "emergency" && <EmergencyScenario key="emergency" />}
+
+      <div className="flex flex-col gap-4">
+        <div className="rounded-xl p-5" style={{background:T.card, border:`1px solid ${T.line}`}}>
+          <p className="display-font text-[15px] font-semibold mb-1" style={{color:T.ink}}>{active.icon} {active.label}</p>
+          <p className="text-[13px] leading-relaxed" style={{color:T.inkSoft}}>{active.blurb}</p>
+        </div>
+
+        <div className="rounded-xl p-5" style={{background:T.teal}}>
+          <p className="text-[11.5px] font-semibold uppercase tracking-wide mb-2" style={{color:"#B7D6D1"}}>
+            <Users size={13} style={{display:"inline", marginRight:4, verticalAlign:"-2px"}} />
+            Why this matters to the clinic
+          </p>
+          <ul className="space-y-2 text-[13px]" style={{color:"#EFF7F5"}}>
+            <li>✓ Fewer no-shows via tap-to-confirm reminders</li>
+            <li>✓ No double-booking — synced to the dentist's real calendar</li>
+            <li>✓ Front desk freed from repetitive calls</li>
+            <li>✓ Patients can type a number instead of tapping — familiar to anyone used to USSD menus</li>
+            <li className="flex gap-2"><AlertTriangle size={15} className="shrink-0 mt-0.5" style={{color:T.amber}} /> Emergencies always reach a real dentist</li>
+          </ul>
+        </div>
+
+        <div className="rounded-xl p-5" style={{background:"#FFF8EC", border:"1px solid #F0DFAF"}}>
+          <p className="text-[11.5px] font-semibold uppercase tracking-wide mb-2" style={{color:"#8A5A12"}}>Note for this demo</p>
+          <p className="text-[12.5px] leading-relaxed" style={{color:"#6B4A15"}}>"Bright Smile Dental" is a sample clinic name for this walkthrough — your real clinic's name, dentists, and services would be set up directly in the dashboard once onboarded, in minutes.</p>
+        </div>
+      </div>
+    </div>
+  </div>;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
